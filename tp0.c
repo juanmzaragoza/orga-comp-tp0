@@ -2,7 +2,7 @@
 * @Author: juanzaragoza
 * @Date:   2016-03-21 21:09:04
 * @Last Modified by:   juanzaragoza
-* @Last Modified time: 2016-03-23 21:23:43
+* @Last Modified time: 2016-03-24 16:28:04
 */
 
 #include <stdio.h>
@@ -10,60 +10,102 @@
 #include <string.h>
 
 /* Constantes */
-const char *cmdmsg[] = {"-V, --version 	Print version and quit.\n",
-                       "-h, --help 		Print this information and quit.\n",
-                       "tp0 v0.0.1\n"};
+const char *cmdmsg[] = {
+	"-V, --version 	Print version and quit.\n",
+	"-h, --help 	Print this information and quit.\n",
+	"tp0 v0.0.1\n"};
 
 /* Estructura de matriz */
 typedef struct matrix {
     size_t rows;
     size_t cols;
-    double* array;
+    float* array;
 } matrix_t;
 
 /* Enumerados */
 typedef enum {PRINTHELP_VERSION, PRINTHELP_HELP, PRINT_VERSION} message_t;
-typedef enum {SUCESS,ERROR,CONTINUE} status_t;
+typedef enum {SUCCESS,ERROR,CONTINUE} status_t;
 
 /* Prototipos */
-status_t handleParam(int, char *[], matrix_t **, matrix_t **);
+status_t handleParam(int, char *[], FILE **);
 void print_message(message_t );
-int is_a_int(char *);
-int is_a_double(char *);
 
-matrix_t *create_matrix(size_t ,size_t);
-void destroy_matrix(matrix_t *);
-int print_matrix(FILE *, matrix_t *);
+matrix_t* create_matrix(size_t ,size_t);
+void destroy_matrix(matrix_t* );
+int print_matrix(FILE* , matrix_t* );
+matrix_t* matrix_multiply(matrix_t* , matrix_t* );
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
 
-	matrix_t *matrix1, *matrix2;
+	matrix_t *matrix1, *matrix2, *matrix_result;
 	status_t status;
+	FILE *fp_in;
+	char ch;
+	int num_rows = 0, i = 0;
+	float element;
 
-    status = handleParam(argc,argv,&matrix1,&matrix2);
+	fp_in = stdin;
+    status = handleParam(argc,argv,&fp_in);
 
-    if(status == CONTINUE){
+    if(status == SUCCESS){
+
+    	return EXIT_SUCCESS;
 
     } else if(status == ERROR){
 
+    	fprintf(stderr, "%s\n", "Error al procesar los parámetros de entrada");
     	return EXIT_FAILURE;
+
+    } else{
+
+    	while(!feof(fp_in)){
+
+	    	if(fscanf(fp_in, "%d", &num_rows) == 1){
+
+	    		matrix1 = create_matrix(num_rows,num_rows);
+				matrix2 = create_matrix(num_rows,num_rows);
+
+				i = 0;
+	    		while (i<num_rows*num_rows && fscanf(fp_in, "%g", &element) == 1){
+	    			matrix1->array[i] = element;
+	    			i++;
+	    		}
+
+	    		while (i >= (num_rows*num_rows) && (i<num_rows*num_rows*2) && fscanf(fp_in, "%g", &element) == 1){
+	    			matrix2->array[i-num_rows*num_rows] = element;
+	    			i++;
+	    		}
+
+	    		if(fscanf(fp_in, "%c", &ch)==1 && ch!='\n'){
+					fprintf(stderr, "%s\n", "Mal formato de linea.");
+					return EXIT_FAILURE;
+	    		}
+
+	    		matrix_result = matrix_multiply(matrix1, matrix2);
+	    		print_matrix(stdout, matrix_result);
+
+	    		destroy_matrix(matrix1);
+				destroy_matrix(matrix2);
+				destroy_matrix(matrix_result);
+
+	    	}
+
+	    }
+
+
 
     }
 
-    print_matrix(stdout, matrix1);
-    print_matrix(stdout, matrix2);
-
-    destroy_matrix(matrix1);
-	destroy_matrix(matrix2);
+    fclose(fp_in);
 
     return EXIT_SUCCESS;
 }
 
-status_t handleParam(int argc, char *argv[], matrix_t **matrix1, matrix_t **matrix2)
+status_t handleParam(int argc, char* argv[], FILE **fp_in)
 {
-	size_t i, j=0, k=0;
-	size_t num_rows=0;
+	size_t i;
+	FILE *f;
 	
 	for(i=1; i<argc; i++) {
 
@@ -71,49 +113,20 @@ status_t handleParam(int argc, char *argv[], matrix_t **matrix1, matrix_t **matr
 
 			print_message(PRINTHELP_VERSION);
 			print_message(PRINTHELP_HELP);
-			return SUCESS;
+			return SUCCESS;
 
 		} else if (strcmp(argv[i], "-V") == 0){
 
 			print_message(PRINT_VERSION);
-			return SUCESS;
+			return SUCCESS;
 
 		} else {
 			
-			if(i>1 && i<num_rows*num_rows+2){ /* first matrix */
+			f = fopen(argv[i], "r");
 
-				if(!is_a_double(argv[i])){
-					destroy_matrix(*matrix1);
-					destroy_matrix(*matrix2);
-					return ERROR;
-				}
-
-				(*matrix1)->array[j] = atof(argv[i]);
-				j++;
-
-			} else if(i >= (num_rows*num_rows+2) && (i<num_rows*num_rows*2+2)){ /* second matrix*/
-
-				if(!is_a_double(argv[i])){
-					destroy_matrix(*matrix2);
-					destroy_matrix(*matrix2);
-					return ERROR;
-				}
-
-				(*matrix2)->array[k] = atof(argv[i]);
-				k++;
-
-			} else{ /* if i=1 -> num of rows=cols*/
-
-				if(!is_a_int(argv[i])){
-					destroy_matrix(*matrix1);
-					destroy_matrix(*matrix2);
-					return ERROR;
-				}
-
-				num_rows = atoi(argv[i]);
-				*matrix1 = create_matrix(num_rows,num_rows);
-				*matrix2 = create_matrix(num_rows,num_rows);
-
+			if(f != NULL) {
+			    *fp_in = f;
+			    return CONTINUE;
 			}
 			
 		}
@@ -122,33 +135,24 @@ status_t handleParam(int argc, char *argv[], matrix_t **matrix1, matrix_t **matr
 	return CONTINUE;
 }
 
-/* Check types */
-int is_a_int(char * num){
-	return 1;
-}
-
-int is_a_double(char * num){
-	return 1;
-}
-
-/* Print messages */
+/* Imprimir mensajes */
 void print_message(message_t message){
 	printf("%s", cmdmsg[message]);
 }
 
-/* Construct matrix */
+/* Construir matriz */
 matrix_t *create_matrix(size_t rows,size_t cols){
 
 	matrix_t *matrix = (matrix_t *)calloc(1, sizeof(matrix_t));
 
 	matrix->rows = rows;
 	matrix->cols = cols;
-	matrix->array = (double *)malloc((rows*cols)*sizeof(double));
+	matrix->array = (float *)malloc((rows*cols)*sizeof(float));
 
 	return matrix;
 }
 
-/* Destroy matrix */
+/* Destruir matriz */
 void destroy_matrix(matrix_t *m){
 
 	free(m->array);
@@ -156,15 +160,45 @@ void destroy_matrix(matrix_t *m){
 
 }
 
-/* Print a matrix */
-int print_matrix(FILE *fp, matrix_t *m){
+/* Imprimir matriz */
+int print_matrix(FILE* fp, matrix_t* m){
 
 	size_t i;
 
+	fprintf(fp, "%zu ", m->rows);
+
 	for(i=0; i< (m->rows)*(m->cols); i++){
-		fprintf(fp, "%f\n", m->array[i]);
+		fprintf(fp, "%g ", m->array[i]);
 	}
+
+	fprintf(fp, "\n");
 
 	return i;
 
+}
+
+/* Multiplica dos matrices */
+matrix_t* matrix_multiply(matrix_t* m1, matrix_t* m2){
+
+	size_t i, j, k;
+	matrix_t *m_res = create_matrix(m1->rows,m2->cols);
+
+    for (i = 0; i < m1->rows; i++) {
+
+        for (j = 0; j < m2->cols; j++) {
+
+        	/* con j recorro la fila y con i voy saltando de columnas */
+            m_res->array[j + i*m2->cols] = 0;
+
+            for (k = 0; k < m1->cols; k++) {/* recorro la fila de m1 y la columna de m2 */
+                m_res->array[j + i*m2->cols] += m1->array[k + i*m1->cols] * m2->array[j + k*m2->cols];
+            }
+            /* m1->array[k + i*m1->cols] fijo la fila y recorro las columnas */
+            /* m2->array[j + k*m2->cols] fijo la columna y recorro las filas */
+
+        }
+
+    }
+
+    return m_res;
 }
