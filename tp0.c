@@ -2,7 +2,7 @@
 * @Author: juanzaragoza
 * @Date:   2016-03-21 21:09:04
 * @Last Modified by:   juanzaragoza
-* @Last Modified time: 2016-03-21 23:29:28
+* @Last Modified time: 2016-03-23 21:23:43
 */
 
 #include <stdio.h>
@@ -26,21 +26,22 @@ typedef enum {PRINTHELP_VERSION, PRINTHELP_HELP, PRINT_VERSION} message_t;
 typedef enum {SUCESS,ERROR,CONTINUE} status_t;
 
 /* Prototipos */
-status_t handleParam(int, char *[], matrix_t **);
+status_t handleParam(int, char *[], matrix_t **, matrix_t **);
 void print_message(message_t );
 int is_a_int(char *);
 int is_a_double(char *);
 
 matrix_t *create_matrix(size_t ,size_t);
 void destroy_matrix(matrix_t *);
+int print_matrix(FILE *, matrix_t *);
 
 int main(int argc, char *argv[])
 {
 
-	matrix_t **matrix;
+	matrix_t *matrix1, *matrix2;
 	status_t status;
 
-    status = handleParam(argc,argv,matrix);
+    status = handleParam(argc,argv,&matrix1,&matrix2);
 
     if(status == CONTINUE){
 
@@ -50,13 +51,19 @@ int main(int argc, char *argv[])
 
     }
 
+    print_matrix(stdout, matrix1);
+    print_matrix(stdout, matrix2);
+
+    destroy_matrix(matrix1);
+	destroy_matrix(matrix2);
+
     return EXIT_SUCCESS;
 }
 
-status_t handleParam(int argc, char *argv[], matrix_t **matrix)
+status_t handleParam(int argc, char *argv[], matrix_t **matrix1, matrix_t **matrix2)
 {
-	int i;
-	size_t num_rows;
+	size_t i, j=0, k=0;
+	size_t num_rows=0;
 	
 	for(i=1; i<argc; i++) {
 
@@ -73,24 +80,39 @@ status_t handleParam(int argc, char *argv[], matrix_t **matrix)
 
 		} else {
 			
-			if(i>1){
+			if(i>1 && i<num_rows*num_rows+2){ /* first matrix */
 
 				if(!is_a_double(argv[i])){
-					destroy_matrix(*matrix);
+					destroy_matrix(*matrix1);
+					destroy_matrix(*matrix2);
 					return ERROR;
 				}
 
-				
+				(*matrix1)->array[j] = atof(argv[i]);
+				j++;
+
+			} else if(i >= (num_rows*num_rows+2) && (i<num_rows*num_rows*2+2)){ /* second matrix*/
+
+				if(!is_a_double(argv[i])){
+					destroy_matrix(*matrix2);
+					destroy_matrix(*matrix2);
+					return ERROR;
+				}
+
+				(*matrix2)->array[k] = atof(argv[i]);
+				k++;
 
 			} else{ /* if i=1 -> num of rows=cols*/
 
 				if(!is_a_int(argv[i])){
-					destroy_matrix(*matrix);
+					destroy_matrix(*matrix1);
+					destroy_matrix(*matrix2);
 					return ERROR;
 				}
 
 				num_rows = atoi(argv[i]);
-				*matrix = create_matrix(num_rows,num_rows);
+				*matrix1 = create_matrix(num_rows,num_rows);
+				*matrix2 = create_matrix(num_rows,num_rows);
 
 			}
 			
@@ -121,7 +143,7 @@ matrix_t *create_matrix(size_t rows,size_t cols){
 
 	matrix->rows = rows;
 	matrix->cols = cols;
-	matrix->array = (double *)malloc((rows+cols)*sizeof(double));
+	matrix->array = (double *)malloc((rows*cols)*sizeof(double));
 
 	return matrix;
 }
@@ -131,5 +153,18 @@ void destroy_matrix(matrix_t *m){
 
 	free(m->array);
 	free(m);
+
+}
+
+/* Print a matrix */
+int print_matrix(FILE *fp, matrix_t *m){
+
+	size_t i;
+
+	for(i=0; i< (m->rows)*(m->cols); i++){
+		fprintf(fp, "%f\n", m->array[i]);
+	}
+
+	return i;
 
 }
