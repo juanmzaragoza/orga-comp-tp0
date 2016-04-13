@@ -2,7 +2,7 @@
 * @Author: juanzaragoza
 * @Date:   2016-03-21 21:09:04
 * @Last Modified by:   juanzaragoza
-* @Last Modified time: 2016-03-24 16:28:04
+* @Last Modified time: 2016-04-13 16:06:19
 */
 
 #include <stdio.h>
@@ -24,7 +24,7 @@ typedef struct matrix {
 
 /* Enumerados */
 typedef enum {PRINTHELP_VERSION, PRINTHELP_HELP, PRINT_VERSION} message_t;
-typedef enum {SUCCESS,ERROR,CONTINUE} status_t;
+typedef enum {SUCCESS,ERROR,ERROR_ARCHIVO,CONTINUE} status_t;
 
 /* Prototipos */
 status_t handleParam(int, char *[], FILE **);
@@ -57,6 +57,11 @@ int main(int argc, char* argv[])
     	fprintf(stderr, "%s\n", "Error al procesar los parámetros de entrada");
     	return EXIT_FAILURE;
 
+    } else if(status == ERROR_ARCHIVO){
+
+    	fprintf(stderr, "%s\n", "Error al abrir el archivo");
+    	return EXIT_FAILURE;
+
     } else{
 
     	while(!feof(fp_in)){
@@ -65,6 +70,17 @@ int main(int argc, char* argv[])
 
 	    		matrix1 = create_matrix(num_rows,num_rows);
 				matrix2 = create_matrix(num_rows,num_rows);
+
+				//verifico no haberme quedado sin memoria
+				if(matrix1 == NULL || matrix2 == NULL){
+
+					destroy_matrix(matrix1);
+					destroy_matrix(matrix2);
+
+					fprintf(stderr, "%s\n", "Sin memoria.");
+					return EXIT_FAILURE;
+
+				}
 
 				i = 0;
 	    		while (i<num_rows*num_rows && fscanf(fp_in, "%g", &element) == 1){
@@ -78,6 +94,10 @@ int main(int argc, char* argv[])
 	    		}
 
 	    		if(fscanf(fp_in, "%c", &ch)==1 && ch!='\n'){
+
+	    			destroy_matrix(matrix1);
+					destroy_matrix(matrix2);
+
 					fprintf(stderr, "%s\n", "Mal formato de linea.");
 					return EXIT_FAILURE;
 	    		}
@@ -145,17 +165,30 @@ matrix_t *create_matrix(size_t rows,size_t cols){
 
 	matrix_t *matrix = (matrix_t *)calloc(1, sizeof(matrix_t));
 
-	matrix->rows = rows;
-	matrix->cols = cols;
-	matrix->array = (float *)malloc((rows*cols)*sizeof(float));
+	if(matrix != NULL){
 
-	return matrix;
+		matrix->rows = rows;
+		matrix->cols = cols;
+
+		matrix->array = (float *)malloc((rows*cols)*sizeof(float));
+
+		if(matrix->array != NULL){
+			return matrix;
+		}
+		
+
+	}
+
+	return NULL;
+	
 }
 
 /* Destruir matriz */
 void destroy_matrix(matrix_t *m){
 
-	free(m->array);
+	if(m != NULL){
+		free(m->array);
+	}
 	free(m);
 
 }
@@ -165,15 +198,22 @@ int print_matrix(FILE* fp, matrix_t* m){
 
 	size_t i;
 
-	fprintf(fp, "%zu ", m->rows);
+	if(fp != NULL && m != NULL){
 
-	for(i=0; i< (m->rows)*(m->cols); i++){
-		fprintf(fp, "%g ", m->array[i]);
+		fprintf(fp, "%zu ", m->rows);
+
+		for(i=0; i< (m->rows)*(m->cols); i++){
+			fprintf(fp, "%g ", m->array[i]);
+		}
+
+		fprintf(fp, "\n");
+
+		return i;
+
 	}
 
-	fprintf(fp, "\n");
-
-	return i;
+	return -1;
+	
 
 }
 
